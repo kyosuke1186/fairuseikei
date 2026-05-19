@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ファイル名整形ツール</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background: #f0f4f8;
+    color: #1a2a3a;
+    min-height: 100vh;
+    padding: 40px 24px 60px;
+  }
+  .shell { max-width: 960px; margin: 0 auto; }
+  .header {
+    margin-bottom: 28px;
+    padding: 28px 32px;
+    background: linear-gradient(135deg, #1a4a7a 0%, #2a6aaa 60%, #3a8acc 100%);
+    border-radius: 12px;
+    color: #fff;
+    box-shadow: 0 4px 18px rgba(26,74,122,.22);
+  }
+  .header .label {
+    font-size: 11px;
+    letter-spacing: .22em;
+    color: rgba(255,255,255,.65);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .header h1 { font-size: 26px; font-weight: 700; letter-spacing: -.01em; color: #fff; }
+  .header p { margin-top: 8px; font-size: 13px; color: rgba(255,255,255,.75); }
+  .drop-zone {
+    margin-bottom: 24px;
+    padding: 48px 28px;
+    border: 2px dashed #93bce0;
+    border-radius: 10px;
+    text-align: center;
+    cursor: pointer;
+    background: #fff;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+    box-shadow: 0 2px 8px rgba(26,74,122,.06);
+  }
+  .drop-zone:hover, .drop-zone.drag {
+    border-color: #2a6aaa;
+    background: #f0f7ff;
+    box-shadow: 0 4px 16px rgba(26,74,122,.12);
+  }
+  .drop-zone .main-text { font-size: 15px; font-weight: 600; color: #1a4a7a; }
+  .drop-zone .sub-text { margin-top: 6px; font-size: 12px; color: #6a90b0; }
+  #file-input { display: none; }
+  .results { display: none; }
+  .results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .results-header .count {
+    font-size: 12px;
+    color: #2a6aaa;
+    font-weight: 600;
+    letter-spacing: .08em;
+    background: #e8f2fb;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid #b8d8f0;
+  }
+  .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    border: 1px solid #b8d0e8;
+    cursor: pointer;
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    letter-spacing: .04em;
+    background: #fff;
+    color: #2a6aaa;
+    transition: background .12s, border-color .12s, box-shadow .12s;
+  }
+  button:hover { background: #f0f7ff; border-color: #2a6aaa; box-shadow: 0 2px 8px rgba(26,74,122,.10); }
+  .btn-primary { background: #1a4a7a; color: #fff; border-color: #1a4a7a; }
+  .btn-primary:hover { background: #2a6aaa; border-color: #2a6aaa; box-shadow: 0 2px 10px rgba(26,74,122,.22); }
+  .btn-danger { color: #c0392b; border-color: #e0b8b5; }
+  .btn-danger:hover { background: #fdf2f2; border-color: #c0392b; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #cde0f0;
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 13px;
+    box-shadow: 0 2px 10px rgba(26,74,122,.07);
+  }
+  thead tr { background: linear-gradient(90deg, #e8f2fb, #d8eaf8); border-bottom: 1px solid #cde0f0; }
+  th { padding: 11px 14px; text-align: left; color: #2a6aaa; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  tbody tr { border-bottom: 1px solid #eef4fa; transition: background .1s; }
+  tbody tr:hover { background: #f5f9fd; }
+  tbody tr:last-child { border-bottom: none; }
+  td { padding: 11px 14px; color: #2a3a4a; font-size: 13px; }
+  .td-before { color: #5a7a9a; }
+  .td-arrow { color: #93bce0; text-align: center; width: 40px; }
+  .td-after { color: #1a4a7a; font-weight: 600; }
+  .badge-ok {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    background: #e8f2fb; color: #2a6aaa; border: 1px solid #b8d8f0;
+    border-radius: 999px; padding: 2px 8px; margin-left: 6px;
+  }
+  .badge-warn {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    background: #fff7e8; color: #c87c00; border: 1px solid #f0d08a;
+    border-radius: 999px; padding: 2px 8px; margin-left: 6px;
+  }
+  .note-box {
+    margin-top: 28px; padding: 18px 22px;
+    border: 1px solid #cde0f0; border-radius: 10px;
+    background: #fff; box-shadow: 0 2px 8px rgba(26,74,122,.05);
+  }
+  .note-box .title {
+    margin-bottom: 10px; font-size: 11px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase; color: #2a6aaa;
+  }
+  .rule-list { list-style: none; font-size: 12px; color: #5a7a9a; display: flex; flex-direction: column; gap: 5px; }
+  .rule-list li::before { content: "→ "; color: #93bce0; font-weight: 700; }
+  @media (max-width: 640px) {
+    body { padding: 20px 12px 36px; }
+    .header { padding: 20px 20px; }
+    .header h1 { font-size: 21px; }
+    .drop-zone { padding: 36px 16px; }
+    th, td { padding: 8px 8px; font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="header">
+    <div class="label">File Name Cleaner</div>
+    <h1>ファイル名整形ツール</h1>
+    <p>CSVを投入 → 漢字をローマ字に変換・記号除去・ハイフン→アンダースコア → ダウンロード</p>
+  </div>
+
+  <div class="drop-zone" id="drop-zone">
+    <input type="file" id="file-input" accept=".csv" multiple>
+    <div class="main-text" id="drop-text">CSVファイルを投入（複数同時OK）</div>
+    <div class="sub-text">クリックしてファイル選択も可</div>
+  </div>
+
+  <div class="results" id="results">
+    <div class="results-header">
+      <div class="count" id="results-count"></div>
+      <div class="btn-group">
+        <button class="btn-danger" onclick="clearAll()">クリア</button>
+        <button class="btn-primary" onclick="downloadAll()">全てダウンロード</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>元のファイル名</th>
+          <th style="text-align:center;width:40px"></th>
+          <th>整形後のファイル名</th>
+        </tr>
+      </thead>
+      <tbody id="results-body"></tbody>
+    </table>
+  </div>
+
+  <div class="note-box">
+    <div class="title">整形ルール</div>
+    <ul class="rule-list">
+      <li>漢字・ひらがな・カタカナ → ヘボン式ローマ字に変換</li>
+      <li>ハイフン（-）→ アンダースコア（_）に変換</li>
+      <li>英数字（A-Z a-z 0-9）とアンダースコア（_）以外の文字を除去</li>
+      <li>連続するアンダースコアは1つに圧縮、前後のアンダースコアも除去</li>
+      <li>拡張子（.csv）はそのまま維持</li>
+      <li>整形後が空になった場合は「file_」＋ハッシュ4桁を使用</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+// ひらがな→カタカナ変換
+function hiraToKata(str) {
+  return str.replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60));
+}
+
+// カタカナ→ヘボン式ローマ字
+function kataToRomaji(str) {
+  const map = [
+    ["ッチ","cchi"],["ッツ","ttsu"],["ッシ","sshi"],
+    ["チャ","cha"],["チュ","chu"],["チョ","cho"],
+    ["シャ","sha"],["シュ","shu"],["ショ","sho"],
+    ["ジャ","ja"],["ジュ","ju"],["ジョ","jo"],
+    ["ニャ","nya"],["ニュ","nyu"],["ニョ","nyo"],
+    ["ヒャ","hya"],["ヒュ","hyu"],["ヒョ","hyo"],
+    ["ビャ","bya"],["ビュ","byu"],["ビョ","byo"],
+    ["ピャ","pya"],["ピュ","pyu"],["ピョ","pyo"],
+    ["ミャ","mya"],["ミュ","myu"],["ミョ","myo"],
+    ["リャ","rya"],["リュ","ryu"],["リョ","ryo"],
+    ["ギャ","gya"],["ギュ","gyu"],["ギョ","gyo"],
+    ["キャ","kya"],["キュ","kyu"],["キョ","kyo"],
+    ["ファ","fa"],["フィ","fi"],["フェ","fe"],["フォ","fo"],
+    ["ウィ","wi"],["ウェ","we"],["ウォ","wo"],
+    ["ティ","ti"],["ディ","di"],["トゥ","tu"],["ドゥ","du"],
+    ["ア","a"],["イ","i"],["ウ","u"],["エ","e"],["オ","o"],
+    ["カ","ka"],["キ","ki"],["ク","ku"],["ケ","ke"],["コ","ko"],
+    ["サ","sa"],["シ","shi"],["ス","su"],["セ","se"],["ソ","so"],
+    ["タ","ta"],["チ","chi"],["ツ","tsu"],["テ","te"],["ト","to"],
+    ["ナ","na"],["ニ","ni"],["ヌ","nu"],["ネ","ne"],["ノ","no"],
+    ["ハ","ha"],["ヒ","hi"],["フ","fu"],["ヘ","he"],["ホ","ho"],
+    ["マ","ma"],["ミ","mi"],["ム","mu"],["メ","me"],["モ","mo"],
+    ["ヤ","ya"],["ユ","yu"],["ヨ","yo"],
+    ["ラ","ra"],["リ","ri"],["ル","ru"],["レ","re"],["ロ","ro"],
+    ["ワ","wa"],["ヲ","wo"],["ン","n"],
+    ["ガ","ga"],["ギ","gi"],["グ","gu"],["ゲ","ge"],["ゴ","go"],
+    ["ザ","za"],["ジ","ji"],["ズ","zu"],["ゼ","ze"],["ゾ","zo"],
+    ["ダ","da"],["ヂ","ji"],["ヅ","zu"],["デ","de"],["ド","do"],
+    ["バ","ba"],["ビ","bi"],["ブ","bu"],["ベ","be"],["ボ","bo"],
+    ["パ","pa"],["ピ","pi"],["プ","pu"],["ペ","pe"],["ポ","po"],
+    ["ヴァ","va"],["ヴィ","vi"],["ヴ","vu"],["ヴェ","ve"],["ヴォ","vo"],
+    ["ァ","a"],["ィ","i"],["ゥ","u"],["ェ","e"],["ォ","o"],
+    ["ッ",""],["ー",""],["・","_"],["　"," "],
+  ];
+
+  // 促音（ッ）の処理：次の子音を重ねる
+  str = str.replace(/ッ([カキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポ])/g, (_, next) => {
+    const tmp = kataToRomajiSingle(next);
+    return tmp[0] + tmp;
+  });
+
+  for (const [kata, roma] of map) {
+    str = str.split(kata).join(roma);
+  }
+  return str;
+}
+
+function kataToRomajiSingle(c) {
+  const map2 = {
+    "カ":"k","キ":"k","ク":"k","ケ":"k","コ":"k",
+    "サ":"s","シ":"s","ス":"s","セ":"s","ソ":"s",
+    "タ":"t","チ":"c","ツ":"t","テ":"t","ト":"t",
+    "ナ":"n","ニ":"n","ヌ":"n","ネ":"n","ノ":"n",
+    "ハ":"h","ヒ":"h","フ":"f","ヘ":"h","ホ":"h",
+    "マ":"m","ミ":"m","ム":"m","メ":"m","モ":"m",
+    "ヤ":"y","ユ":"y","ヨ":"y",
+    "ラ":"r","リ":"r","ル":"r","レ":"r","ロ":"r",
+    "ワ":"w","ガ":"g","ギ":"g","グ":"g","ゲ":"g","ゴ":"g",
+    "ザ":"z","ジ":"j","ズ":"z","ゼ":"z","ゾ":"z",
+    "ダ":"d","デ":"d","ド":"d",
+    "バ":"b","ビ":"b","ブ":"b","ベ":"b","ボ":"b",
+    "パ":"p","ピ":"p","プ":"p","ペ":"p","ポ":"p",
+  };
+  return map2[c] || "";
+}
+
+// 漢字を含む文字列をローマ字変換（漢字は読みが取得できないためそのまま除去前に処理）
+// wanakana的なアプローチ：ひらがな/カタカナのみ変換し、漢字は除去
+function toRomaji(str) {
+  // 全角英数→半角
+  str = str.replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  // ひらがな→カタカナ→ローマ字
+  str = hiraToKata(str);
+  str = kataToRomaji(str);
+  return str;
+}
+
+function cleanFileName(name) {
+  const dot = name.lastIndexOf(".");
+  const base = dot >= 0 ? name.slice(0, dot) : name;
+  const ext  = dot >= 0 ? name.slice(dot)    : "";
+
+  let cleaned = base;
+
+  // ハイフン→アンダースコア（ローマ字変換前）
+  cleaned = cleaned.replace(/-/g, "_");
+
+  // ひらがな・カタカナ→ローマ字
+  cleaned = toRomaji(cleaned);
+
+  // 残った漢字・全角・非ASCII除去
+  cleaned = cleaned.replace(/[^\x00-\x7F]/g, "");
+
+  // 英数字・アンダースコア以外除去
+  cleaned = cleaned.replace(/[^A-Za-z0-9_]/g, "");
+
+  // 連続アンダースコア圧縮・前後除去
+  cleaned = cleaned.replace(/_+/g, "_");
+  cleaned = cleaned.replace(/^_+|_+$/g, "");
+
+  if (!cleaned) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) & 0xffff;
+    cleaned = "file_" + hash.toString(16).padStart(4, "0");
+  }
+
+  return cleaned + ext;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+let allFiles = [];
+
+function renderResults() {
+  const tbody = document.getElementById("results-body");
+  tbody.innerHTML = "";
+  allFiles.forEach(f => {
+    const changed = f.newName !== f.name;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="td-before">${escHtml(f.name)}</td>
+      <td class="td-arrow">→</td>
+      <td class="td-after">
+        ${escHtml(f.newName)}
+        ${changed
+          ? '<span class="badge-warn">変更</span>'
+          : '<span class="badge-ok">変更なし</span>'}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  document.getElementById("results-count").textContent = `${allFiles.length}ファイル処理完了`;
+  document.getElementById("results").style.display = "block";
+}
+
+function downloadAll() {
+  if (!allFiles.length) return;
+  allFiles.forEach((f, i) => {
+    setTimeout(() => {
+      const blob = new Blob([f.content], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = f.newName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, i * 80);
+  });
+}
+
+function clearAll() {
+  allFiles = [];
+  document.getElementById("results").style.display = "none";
+  document.getElementById("results-body").innerHTML = "";
+  document.getElementById("drop-text").textContent = "CSVファイルを投入（複数同時OK）";
+  document.getElementById("file-input").value = "";
+}
+
+async function handleFiles(files) {
+  const csvFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith(".csv"));
+  if (!csvFiles.length) return;
+  document.getElementById("drop-text").textContent = "処理中...";
+  const existingNames = new Set(allFiles.map(f => f.name));
+  const targets = csvFiles.filter(f => !existingNames.has(f.name));
+  const processed = await Promise.all(targets.map(async f => {
+    const buffer = await f.arrayBuffer();
+    const content = new Uint8Array(buffer);
+    const newName = cleanFileName(f.name);
+    return { name: f.name, newName, content };
+  }));
+  allFiles = [...allFiles, ...processed];
+  document.getElementById("drop-text").textContent = "さらに追加登録できます";
+  renderResults();
+}
+
+const dropZone = document.getElementById("drop-zone");
+const fileInput = document.getElementById("file-input");
+dropZone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", e => handleFiles(e.target.files));
+dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("drag"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropZone.classList.remove("drag");
+  handleFiles(e.dataTransfer.files);
+});
+</script>
+</body>
+</html>
